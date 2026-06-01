@@ -204,10 +204,6 @@ export default function ScreenPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black p-6 text-white">
-      <div className="absolute right-4 top-4 text-xs text-gray-500">
-        {user.email}
-      </div>
-
       <h1 className="mb-4 text-2xl font-bold tracking-wide">Live Comments</h1>
 
       <div className="space-y-2">
