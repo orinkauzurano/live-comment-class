@@ -93,7 +93,7 @@ export default function StudentPage() {
 
     setTimeout(() => {
       setEffects((prev) => prev.filter((effect) => effect.id !== id));
-    }, 1400);
+    }, 1500);
   };
 
   const login = async () => {
@@ -147,20 +147,50 @@ export default function StudentPage() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-pink-50 via-orange-50 to-sky-50 px-3 py-4 text-slate-800">
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-pink-50 via-orange-50 to-sky-50 px-3 py-3 text-slate-800">
       <style jsx>{`
-        @keyframes sparkle-pop {
+        @keyframes sparkle-left {
           0% {
             opacity: 0;
-            transform: translate(-50%, 10px) scale(0.5) rotate(-8deg);
+            transform: translate(-50%, 8px) scale(0.45) rotate(-20deg);
           }
-          20% {
+          18% {
             opacity: 1;
-            transform: translate(-50%, -8px) scale(1.15) rotate(5deg);
+            transform: translate(-80px, -8px) scale(1.1) rotate(8deg);
           }
           100% {
             opacity: 0;
-            transform: translate(-50%, -80px) scale(1.45) rotate(16deg);
+            transform: translate(-135px, -95px) scale(1.35) rotate(-35deg);
+          }
+        }
+
+        @keyframes sparkle-center {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, 12px) scale(0.5) rotate(8deg);
+          }
+          18% {
+            opacity: 1;
+            transform: translate(-50%, -18px) scale(1.2) rotate(-8deg);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -120px) scale(1.45) rotate(28deg);
+          }
+        }
+
+        @keyframes sparkle-right {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, 10px) scale(0.45) rotate(18deg);
+          }
+          18% {
+            opacity: 1;
+            transform: translate(36px, -4px) scale(1.1) rotate(-6deg);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(86px, -92px) scale(1.35) rotate(34deg);
           }
         }
 
@@ -171,19 +201,27 @@ export default function StudentPage() {
           }
           20% {
             opacity: 1;
-            transform: translate(-50%, -4px) scale(1.2);
+            transform: translate(-50%, -4px) scale(1.18);
           }
           55% {
             transform: translate(-50%, -36px) scale(1.05) rotate(4deg);
           }
           100% {
             opacity: 0;
-            transform: translate(-50%, -90px) scale(1.25) rotate(-5deg);
+            transform: translate(-50%, -90px) scale(1.22) rotate(-5deg);
           }
         }
 
-        .sparkle-pop {
-          animation: sparkle-pop 1.4s ease-out forwards;
+        .sparkle-left {
+          animation: sparkle-left 1.5s ease-out forwards;
+        }
+
+        .sparkle-center {
+          animation: sparkle-center 1.5s ease-out forwards;
+        }
+
+        .sparkle-right {
+          animation: sparkle-right 1.5s ease-out forwards;
         }
 
         .icon-float {
@@ -194,26 +232,30 @@ export default function StudentPage() {
       {effects.map((effect) => (
         <div
           key={effect.id}
-          className={`pointer-events-none fixed left-1/2 top-[42%] z-50 select-none text-center ${
-            effect.type === "sparkle" ? "sparkle-pop" : "icon-float"
-          }`}
+          className="pointer-events-none fixed left-1/2 top-[42%] z-50 select-none text-center"
         >
           {effect.type === "sparkle" && (
-            <div className="flex items-center justify-center gap-2 text-5xl drop-shadow">
-              <span>✨</span>
-              <span className="text-4xl">🌟</span>
-              <span>✨</span>
-            </div>
+            <>
+              <span className="sparkle-left absolute text-5xl drop-shadow">
+                ✨
+              </span>
+              <span className="sparkle-center absolute text-5xl drop-shadow">
+                🌟
+              </span>
+              <span className="sparkle-right absolute text-5xl drop-shadow">
+                ✨
+              </span>
+            </>
           )}
 
           {effect.type === "good" && (
-            <div className="rounded-full bg-white/90 px-6 py-4 text-6xl shadow-xl ring-4 ring-emerald-100">
+            <div className="icon-float rounded-full bg-white/90 px-6 py-4 text-6xl shadow-xl ring-4 ring-emerald-100">
               👍
             </div>
           )}
 
           {effect.type === "question" && (
-            <div className="rounded-full bg-white/90 px-6 py-4 text-6xl shadow-xl ring-4 ring-amber-100">
+            <div className="icon-float rounded-full bg-white/90 px-6 py-4 text-6xl shadow-xl ring-4 ring-amber-100">
               ❓
             </div>
           )}
@@ -224,24 +266,27 @@ export default function StudentPage() {
       <div className="pointer-events-none absolute -right-10 top-40 h-36 w-36 rounded-full bg-sky-200/50 blur-2xl" />
       <div className="pointer-events-none absolute bottom-10 left-10 h-32 w-32 rounded-full bg-amber-200/40 blur-2xl" />
 
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-md flex-col">
+      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-md flex-col">
         <div className="mb-2 flex justify-end">
           <div className="max-w-[78%] truncate rounded-full bg-white/75 px-3 py-1 text-[10px] font-bold text-slate-500 shadow-sm ring-1 ring-white/80 backdrop-blur">
             {user ? `ログイン中：${user.email}` : "未ログイン"}
           </div>
         </div>
 
-        <div className="relative flex-1 rounded-[28px] bg-white/90 p-5 shadow-xl ring-1 ring-white/80 backdrop-blur">
-          <div className="mb-5 text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-200 to-amber-200 text-2xl shadow-sm">
+        <div className="relative flex-1 rounded-[26px] bg-white/90 p-4 shadow-xl ring-1 ring-white/80 backdrop-blur">
+          <div className="mb-4 flex items-center justify-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-200 to-amber-200 text-2xl shadow-sm">
               💬
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-800">
-              コメント送信
-            </h1>
-            <p className="mt-1 text-xs font-bold text-slate-400">
-              授業中のコメント・リアクションはこちら
-            </p>
+
+            <div className="text-left">
+              <h1 className="text-2xl font-black tracking-tight text-slate-800">
+                コメント送信
+              </h1>
+              <p className="mt-0.5 text-xs font-bold text-slate-400">
+                授業中のコメント・リアクションはこちら
+              </p>
+            </div>
           </div>
 
           {!user ? (
@@ -281,14 +326,14 @@ export default function StudentPage() {
 
               <div className="rounded-3xl bg-gradient-to-br from-pink-50 to-orange-50 p-3 ring-1 ring-pink-100">
                 <textarea
-                  className="h-32 w-full resize-none rounded-2xl border-0 bg-white/90 p-4 text-base leading-relaxed text-slate-700 shadow-inner outline-none ring-1 ring-pink-100 placeholder:text-slate-300 focus:ring-2 focus:ring-pink-200"
+                  className="h-28 w-full resize-none rounded-2xl border-0 bg-white/90 p-4 text-base leading-relaxed text-slate-700 shadow-inner outline-none ring-1 ring-pink-100 placeholder:text-slate-300 focus:ring-2 focus:ring-pink-200"
                   placeholder="コメントを入力してください"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                 />
 
                 <button
-                  className="mt-3 w-full rounded-2xl bg-gradient-to-r from-pink-500 to-orange-400 py-3.5 font-black text-white shadow-lg shadow-pink-200 transition active:translate-y-[1px] disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 disabled:shadow-none"
+                  className="mt-3 w-full rounded-2xl bg-gradient-to-r from-pink-500 to-orange-400 py-3 font-black text-white shadow-lg shadow-pink-200 transition active:translate-y-[1px] disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 disabled:shadow-none"
                   onClick={sendComment}
                   disabled={sending || !text.trim()}
                 >
@@ -296,8 +341,8 @@ export default function StudentPage() {
                 </button>
               </div>
 
-              <div className="mt-5 rounded-3xl bg-slate-50 p-4 ring-1 ring-slate-100">
-                <p className="mb-3 text-sm font-black text-slate-600">
+              <div className="mt-4 rounded-3xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                <p className="mb-2 text-sm font-black text-slate-600">
                   リアクション
                 </p>
 
@@ -305,30 +350,30 @@ export default function StudentPage() {
                   <button
                     onClick={() => sendReaction("good")}
                     disabled={reactionDisabled}
-                    className="rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 py-4 font-black text-white shadow-lg shadow-emerald-100 transition active:translate-y-[1px] disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 disabled:shadow-none"
+                    className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 py-2.5 font-black text-white shadow-lg shadow-emerald-100 transition active:translate-y-[1px] disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 disabled:shadow-none"
                   >
-                    <span className="block text-2xl">👍</span>
-                    <span className="mt-1 block text-sm">OK</span>
+                    <span className="text-2xl leading-none">👍</span>
+                    <span className="text-sm leading-none">OK</span>
                   </button>
 
                   <button
                     onClick={() => sendReaction("question")}
                     disabled={reactionDisabled}
-                    className="rounded-2xl bg-gradient-to-br from-amber-400 to-orange-400 py-4 font-black text-white shadow-lg shadow-amber-100 transition active:translate-y-[1px] disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 disabled:shadow-none"
+                    className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-400 py-2.5 font-black text-white shadow-lg shadow-amber-100 transition active:translate-y-[1px] disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 disabled:shadow-none"
                   >
-                    <span className="block text-2xl">❓</span>
-                    <span className="mt-1 block text-sm">わからない</span>
+                    <span className="text-2xl leading-none">❓</span>
+                    <span className="text-sm leading-none">わからない</span>
                   </button>
                 </div>
 
                 {reactionDisabled && (
-                  <p className="mt-3 text-center text-[11px] font-bold text-slate-400">
+                  <p className="mt-2 text-center text-[11px] font-bold text-slate-400">
                     リアクションは少し時間を空けて送れます
                   </p>
                 )}
               </div>
 
-              <div className="mt-4 text-center">
+              <div className="mt-3 text-center">
                 <button
                   onClick={() => signOut(auth)}
                   className="text-xs font-bold text-slate-400 underline underline-offset-2"
@@ -339,7 +384,7 @@ export default function StudentPage() {
             </>
           )}
 
-          <div className="mt-5 rounded-2xl bg-white/70 p-3 text-[11px] leading-relaxed text-slate-500 ring-1 ring-slate-100">
+          <div className="mt-4 rounded-2xl bg-white/70 p-3 text-[11px] leading-relaxed text-slate-500 ring-1 ring-slate-100">
             <p className="font-black text-slate-600">注意事項</p>
             <p className="mt-1">
               投稿内容は匿名でスクリーンに表示されます。メールアドレス等の個人情報が他の学生に公開されることはありません。
