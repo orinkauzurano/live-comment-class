@@ -15,7 +15,15 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+  User,
+} from "firebase/auth";
+import { auth, db, googleProvider } from "@/lib/firebase";
+
+const ADMIN_EMAIL = "k-yamawaki@u.shukutoku.ac.jp";
 
 type Comment = {
   id: string;
@@ -32,10 +40,15 @@ type FloatingReaction = {
 };
 
 export default function ScreenPage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
   const [screenStartedAt] = useState(() => Timestamp.fromDate(new Date()));
   const [allComments, setAllComments] = useState<Comment[]>([]);
   const [mutedUids, setMutedUids] = useState<string[]>([]);
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
+
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   const comments = allComments.filter((comment) => {
     if (!comment.uid) return true;
@@ -43,6 +56,15 @@ export default function ScreenPage() {
   });
 
   useEffect(() => {
+    return onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthChecked(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
     const q = query(
       collection(db, "comments"),
       where("status", "==", "visible"),
@@ -61,22 +83,23 @@ export default function ScreenPage() {
     });
 
     return () => unsubscribe();
-  }, [screenStartedAt]);
+  }, [isAdmin, screenStartedAt]);
 
   useEffect(() => {
-    const q = query(
-      collection(db, "users"),
-      where("commentMuted", "==", true)
-    );
+    if (!isAdmin) return;
+
+    const q = query(collection(db, "users"), where("commentMuted", "==", true));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setMutedUids(snapshot.docs.map((doc) => doc.id));
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
+    if (!isAdmin) return;
+
     const q = query(
       collection(db, "reactions"),
       where("createdAt", ">=", screenStartedAt),
@@ -105,7 +128,11 @@ export default function ScreenPage() {
     });
 
     return () => unsubscribe();
-  }, [screenStartedAt]);
+  }, [isAdmin, screenStartedAt]);
+
+  const login = async () => {
+    await signInWithPopup(auth, googleProvider);
+  };
 
   const hideComment = async (comment: Comment) => {
     await updateDoc(doc(db, "comments", comment.id), {
@@ -135,11 +162,53 @@ export default function ScreenPage() {
     );
   };
 
+  if (!authChecked) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black text-white">
+        読み込み中...
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
+        <div className="rounded-2xl bg-gray-900 p-8 text-center">
+          <h1 className="mb-4 text-2xl font-bold">管理者ログイン</h1>
+          <button
+            onClick={login}
+            className="rounded-xl bg-blue-600 px-6 py-3 font-bold text-white"
+          >
+            Googleアカウントでログイン
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
+        <div className="rounded-2xl bg-gray-900 p-8 text-center">
+          <h1 className="mb-4 text-2xl font-bold">管理者専用ページです</h1>
+          <p className="mb-4 text-sm text-gray-300">
+            現在ログイン中：{user.email}
+          </p>
+          <button onClick={() => signOut(auth)} className="text-sm underline">
+            ログアウト
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-black p-6 text-white">
-      <h1 className="mb-4 text-2xl font-bold tracking-wide">
-        Live Comments
-      </h1>
+      <div className="absolute right-4 top-4 text-xs text-gray-500">
+        {user.email}
+      </div>
+
+      <h1 className="mb-4 text-2xl font-bold tracking-wide">Live Comments</h1>
 
       <div className="space-y-2">
         {comments.map((comment) => (

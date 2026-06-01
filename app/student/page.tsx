@@ -85,7 +85,7 @@ export default function StudentPage() {
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error(error);
-      alert("ログインに失敗しました。");
+      alert("ログインに失敗しました。Wi-Fiを切って再度お試しください。");
     }
   };
 
@@ -133,6 +133,14 @@ export default function StudentPage() {
 
         {!user ? (
           <>
+            <div className="mb-4 rounded-xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-800">
+              <p className="font-bold">ログイン前の確認</p>
+              <p className="mt-1">
+                大学Wi-FiではGoogleログインできません。
+                スマホのWi-Fiを切り、4G/5G回線でアクセスしてください。
+              </p>
+            </div>
+
             <button
               onClick={login}
               className="w-full rounded-xl bg-blue-600 py-3 font-bold text-white"
