@@ -19,7 +19,10 @@ import {
 } from "firebase/auth";
 import { auth, db, googleProvider } from "@/lib/firebase";
 
-const ADMIN_EMAIL = "k-yamawaki@u.shukutoku.ac.jp";
+const ADMIN_EMAILS = [
+  "k-yamawaki@u.shukutoku.ac.jp",
+  "t-sahara@u.shukutoku.ac.jp",
+];
 
 type UserData = {
   id: string;
@@ -42,6 +45,7 @@ type CommentData = {
 };
 
 type FilterType = "all" | "visible" | "hidden" | "muted";
+type DateFilterType = "today" | "past";
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -51,8 +55,9 @@ export default function AdminPage() {
   const [comments, setComments] = useState<CommentData[]>([]);
   const [searchText, setSearchText] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
+  const [dateFilter, setDateFilter] = useState<DateFilterType>("today");
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = !!user?.email && ADMIN_EMAILS.includes(user.email);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (currentUser) => {
@@ -84,7 +89,7 @@ export default function AdminPage() {
     const q = query(
       collection(db, "comments"),
       orderBy("createdAt", "desc"),
-      limit(200)
+      limit(300)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -100,13 +105,51 @@ export default function AdminPage() {
   }, [isAdmin]);
 
   const mutedUidSet = useMemo(() => {
-    return new Set(
-      users.filter((u) => u.commentMuted).map((u) => u.id)
-    );
+    return new Set(users.filter((u) => u.commentMuted).map((u) => u.id));
   }, [users]);
 
-  const filteredComments = useMemo(() => {
+  const dateFilteredComments = useMemo(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
     return comments.filter((comment) => {
+      const createdDate = comment.createdAt?.toDate();
+
+      if (dateFilter === "today") {
+        return !!createdDate && createdDate >= todayStart;
+      }
+
+      if (dateFilter === "past") {
+        return !createdDate || createdDate < todayStart;
+      }
+
+      return true;
+    });
+  }, [comments, dateFilter]);
+
+  const visibleUsers = useMemo(() => {
+    const commenterUidSet = new Set(
+      dateFilteredComments
+        .map((comment) => comment.uid)
+        .filter((uid): uid is string => !!uid)
+    );
+
+    const commenterEmailSet = new Set(
+      dateFilteredComments
+        .map((comment) => comment.email)
+        .filter((email): email is string => !!email)
+    );
+
+    return users.filter((user) => {
+      return (
+        commenterUidSet.has(user.id) ||
+        commenterEmailSet.has(user.email || "")
+      );
+    });
+  }, [users, dateFilteredComments]);
+
+  const filteredComments = useMemo(() => {
+    return dateFilteredComments.filter((comment) => {
       const status = mutedUidSet.has(comment.uid || "")
         ? "muted"
         : comment.status || "visible";
@@ -122,7 +165,7 @@ export default function AdminPage() {
 
       return target.includes(keyword);
     });
-  }, [comments, filter, searchText, mutedUidSet]);
+  }, [dateFilteredComments, filter, searchText, mutedUidSet]);
 
   const login = async () => {
     await signInWithPopup(auth, googleProvider);
@@ -156,6 +199,19 @@ export default function AdminPage() {
 
     const date = comment.createdAt.toDate();
     return date.toLocaleTimeString("ja-JP", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
+  const formatDateTime = (comment: CommentData) => {
+    if (!comment.createdAt) return "-";
+
+    const date = comment.createdAt.toDate();
+    return date.toLocaleString("ja-JP", {
+      month: "2-digit",
+      day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
@@ -220,8 +276,34 @@ export default function AdminPage() {
           </div>
         </div>
 
+        <div className="flex gap-2 rounded-2xl bg-white p-2 shadow">
+          {[
+            ["today", "本日"],
+            ["past", "昨日以前"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setDateFilter(value as DateFilterType)}
+              className={`flex-1 rounded-xl px-5 py-3 text-base font-bold transition ${
+                dateFilter === value
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <section className="rounded-2xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-xl font-bold">アカウント管理</h2>
+          <h2 className="mb-4 text-xl font-bold">
+            アカウント管理
+            <span className="ml-2 text-sm font-normal text-slate-500">
+              {dateFilter === "today"
+                ? "本日コメントしたアカウント"
+                : "昨日以前にコメントしたアカウント"}
+            </span>
+          </h2>
 
           <table className="w-full border-collapse text-sm">
             <thead>
@@ -234,7 +316,7 @@ export default function AdminPage() {
             </thead>
 
             <tbody>
-              {users.map((user) => (
+              {visibleUsers.map((user) => (
                 <tr key={user.id} className="border-b">
                   <td className="p-3">
                     {user.commentMuted ? (
@@ -263,6 +345,17 @@ export default function AdminPage() {
                   </td>
                 </tr>
               ))}
+
+              {visibleUsers.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="p-6 text-center text-sm text-slate-500"
+                  >
+                    この期間にコメントしたアカウントはありません
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </section>
@@ -304,7 +397,9 @@ export default function AdminPage() {
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 bg-slate-50">
                 <tr className="border-b text-left">
-                  <th className="p-3">時刻</th>
+                  <th className="p-3">
+                    {dateFilter === "today" ? "時刻" : "日時"}
+                  </th>
                   <th className="p-3">状態</th>
                   <th className="p-3">投稿者</th>
                   <th className="p-3">コメント</th>
@@ -319,7 +414,9 @@ export default function AdminPage() {
                   return (
                     <tr key={comment.id} className="border-b align-top">
                       <td className="whitespace-nowrap p-3">
-                        {formatTime(comment)}
+                        {dateFilter === "today"
+                          ? formatTime(comment)
+                          : formatDateTime(comment)}
                       </td>
 
                       <td className="whitespace-nowrap p-3">
@@ -368,6 +465,17 @@ export default function AdminPage() {
                     </tr>
                   );
                 })}
+
+                {filteredComments.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="p-6 text-center text-sm text-slate-500"
+                    >
+                      該当するコメントはありません
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

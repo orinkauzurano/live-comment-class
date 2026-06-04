@@ -23,7 +23,10 @@ import {
 } from "firebase/auth";
 import { auth, db, googleProvider } from "@/lib/firebase";
 
-const ADMIN_EMAIL = "k-yamawaki@u.shukutoku.ac.jp";
+const ADMIN_EMAILS = [
+  "k-yamawaki@u.shukutoku.ac.jp",
+  "t-sahara@u.shukutoku.ac.jp",
+];
 
 type Comment = {
   id: string;
@@ -48,7 +51,7 @@ export default function ScreenPage() {
   const [mutedUids, setMutedUids] = useState<string[]>([]);
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = !!user?.email && ADMIN_EMAILS.includes(user.email);
 
   const comments = allComments.filter((comment) => {
     if (!comment.uid) return true;
