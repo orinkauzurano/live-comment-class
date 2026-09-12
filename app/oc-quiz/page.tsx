@@ -1,8 +1,6 @@
 "use client";
 
 import { FormEvent, MouseEvent, useEffect, useState } from "react";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 const SESSION_ID = "oc-2026-09-13";
 const RESPONSE_ID_KEY = `ocSnackResponseId:${SESSION_ID}`;
@@ -36,6 +34,31 @@ type ParticleBurst = {
   y: number;
   color: string;
 };
+
+type FirebaseBundle = {
+  db: typeof import("@/lib/firebase")["db"];
+  doc: typeof import("firebase/firestore")["doc"];
+  serverTimestamp: typeof import("firebase/firestore")["serverTimestamp"];
+  setDoc: typeof import("firebase/firestore")["setDoc"];
+};
+
+let firebaseBundlePromise: Promise<FirebaseBundle> | null = null;
+
+function prepareFirebase() {
+  if (!firebaseBundlePromise) {
+    firebaseBundlePromise = Promise.all([
+      import("@/lib/firebase"),
+      import("firebase/firestore"),
+    ]).then(([firebaseModule, firestoreModule]) => ({
+      db: firebaseModule.db,
+      doc: firestoreModule.doc,
+      serverTimestamp: firestoreModule.serverTimestamp,
+      setDoc: firestoreModule.setDoc,
+    }));
+  }
+
+  return firebaseBundlePromise;
+}
 
 function createResponseId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -71,6 +94,15 @@ export default function OpenCampusQuizPage() {
       console.warn("回答IDを保存できませんでした。", storageError);
       setResponseId(createResponseId());
     }
+
+    // まずフォームを描画し、その少し後にFirebaseをバックグラウンドで準備します。
+    // 利用者が問題文を読んでいる間に読み込みを進めるため、
+    // 送信時には多くの場合すでに準備済みになります。
+    const preloadTimer = window.setTimeout(() => {
+      void prepareFirebase();
+    }, 350);
+
+    return () => window.clearTimeout(preloadTimer);
   }, []);
 
   const triggerParticles = (x: number, y: number, color: string) => {
@@ -112,6 +144,10 @@ export default function OpenCampusQuizPage() {
     setSuccessMessage("");
 
     try {
+      // 通常は画面表示後のバックグラウンド読み込みですでに準備済み。
+      // まだ終わっていない場合だけ、ここで残りの読み込みを待ちます。
+      const { db, doc, serverTimestamp, setDoc } = await prepareFirebase();
+
       await setDoc(
         doc(db, "ocSnackResponses", responseId),
         {
