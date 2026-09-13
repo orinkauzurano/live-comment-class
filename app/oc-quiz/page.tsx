@@ -40,6 +40,7 @@ type FirebaseBundle = {
   doc: typeof import("firebase/firestore")["doc"];
   serverTimestamp: typeof import("firebase/firestore")["serverTimestamp"];
   setDoc: typeof import("firebase/firestore")["setDoc"];
+  onSnapshot: typeof import("firebase/firestore")["onSnapshot"];
 };
 
 let firebaseBundlePromise: Promise<FirebaseBundle> | null = null;
@@ -54,6 +55,7 @@ function prepareFirebase() {
       doc: firestoreModule.doc,
       serverTimestamp: firestoreModule.serverTimestamp,
       setDoc: firestoreModule.setDoc,
+      onSnapshot: firestoreModule.onSnapshot,
     }));
   }
 
@@ -79,6 +81,8 @@ export default function OpenCampusQuizPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
   const [bursts, setBursts] = useState<ParticleBurst[]>([]);
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [quizStatusReady, setQuizStatusReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -95,14 +99,36 @@ export default function OpenCampusQuizPage() {
       setResponseId(createResponseId());
     }
 
-    // まずフォームを描画し、その少し後にFirebaseをバックグラウンドで準備します。
-    // 利用者が問題文を読んでいる間に読み込みを進めるため、
-    // 送信時には多くの場合すでに準備済みになります。
+    // 最初は待機画面だけをすぐ表示し、その後Firebaseを裏で準備します。
+    // 管理者画面でクイズをONにすると、このページもリアルタイムで切り替わります。
+    let unsubscribe: (() => void) | undefined;
     const preloadTimer = window.setTimeout(() => {
-      void prepareFirebase();
+      void prepareFirebase()
+        .then(({ db, doc, onSnapshot }) => {
+          unsubscribe = onSnapshot(
+            doc(db, "ocSnackSessions", SESSION_ID),
+            (snapshot) => {
+              setQuizOpen(snapshot.exists() && snapshot.data()?.quizOpen === true);
+              setQuizStatusReady(true);
+            },
+            (statusError) => {
+              console.error(statusError);
+              setQuizOpen(false);
+              setQuizStatusReady(true);
+            }
+          );
+        })
+        .catch((statusError) => {
+          console.error(statusError);
+          setQuizOpen(false);
+          setQuizStatusReady(true);
+        });
     }, 350);
 
-    return () => window.clearTimeout(preloadTimer);
+    return () => {
+      window.clearTimeout(preloadTimer);
+      unsubscribe?.();
+    };
   }, []);
 
   const triggerParticles = (x: number, y: number, color: string) => {
@@ -134,7 +160,7 @@ export default function OpenCampusQuizPage() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!choice || !responseId || sending) return;
+    if (!quizOpen || !choice || !responseId || sending) return;
 
     const selected = choices.find((item) => item.value === choice);
     if (!selected) return;
@@ -180,6 +206,34 @@ export default function OpenCampusQuizPage() {
       setSending(false);
     }
   };
+
+  if (!quizOpen) {
+    return (
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-pink-50 via-orange-50 to-sky-50 px-5 text-slate-800">
+        <div className="pointer-events-none absolute -left-12 top-12 h-40 w-40 rounded-full bg-pink-200/50 blur-3xl" />
+        <div className="pointer-events-none absolute -right-12 bottom-20 h-40 w-40 rounded-full bg-sky-200/50 blur-3xl" />
+
+        <section className="relative w-full max-w-md rounded-[32px] bg-white/95 px-7 py-10 text-center shadow-xl ring-1 ring-white">
+          <div className="text-6xl">🥔</div>
+          <p className="mt-4 text-xs font-black tracking-[0.2em] text-orange-500">
+            OPEN CAMPUS QUIZ
+          </p>
+          <h1 className="mt-3 text-2xl font-black tracking-tight">
+            もう少しお待ちくださいね
+          </h1>
+          <p className="mt-3 text-sm font-bold leading-7 text-slate-500">
+            時間になったら、この画面に問題と選択肢が表示されます。
+          </p>
+          {!quizStatusReady && (
+            <div className="mt-6 flex items-center justify-center gap-2 text-xs font-bold text-slate-400">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-orange-300" />
+              準備中...
+            </div>
+          )}
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-pink-50 via-orange-50 to-sky-50 px-4 py-5 text-slate-800">

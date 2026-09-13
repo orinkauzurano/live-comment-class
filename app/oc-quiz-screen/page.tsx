@@ -8,6 +8,7 @@ import {
   onSnapshot,
   query,
   serverTimestamp,
+  setDoc,
   Timestamp,
   updateDoc,
   where,
@@ -65,6 +66,9 @@ export default function OpenCampusQuizScreenPage() {
   const [responses, setResponses] = useState<Response[]>([]);
   const [subscriptionError, setSubscriptionError] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [quizStatusReady, setQuizStatusReady] = useState(false);
+  const [changingQuizStatus, setChangingQuizStatus] = useState(false);
 
   const isAdmin = !!user?.email && ADMIN_EMAILS.includes(user.email);
 
@@ -100,6 +104,39 @@ export default function OpenCampusQuizScreenPage() {
         setSubscriptionError(
           "回答を読み込めませんでした。Firestoreルールを確認してください。"
         );
+      }
+    );
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const sessionRef = doc(db, "ocSnackSessions", SESSION_ID);
+
+    return onSnapshot(
+      sessionRef,
+      async (snapshot) => {
+        if (!snapshot.exists()) {
+          try {
+            await setDoc(sessionRef, {
+              quizOpen: false,
+              updatedAt: serverTimestamp(),
+            });
+            setQuizOpen(false);
+          } catch (error) {
+            console.error(error);
+          } finally {
+            setQuizStatusReady(true);
+          }
+          return;
+        }
+
+        setQuizOpen(snapshot.data()?.quizOpen === true);
+        setQuizStatusReady(true);
+      },
+      (error) => {
+        console.error(error);
+        setQuizStatusReady(true);
       }
     );
   }, [isAdmin]);
@@ -145,6 +182,27 @@ export default function OpenCampusQuizScreenPage() {
       status: "hidden",
       hiddenAt: serverTimestamp(),
     });
+  };
+
+  const toggleQuizOpen = async () => {
+    if (!quizStatusReady || changingQuizStatus) return;
+
+    setChangingQuizStatus(true);
+    try {
+      await setDoc(
+        doc(db, "ocSnackSessions", SESSION_ID),
+        {
+          quizOpen: !quizOpen,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.error(error);
+      window.alert("クイズ表示の切り替えに失敗しました。Firestoreルールを確認してください。");
+    } finally {
+      setChangingQuizStatus(false);
+    }
   };
 
   const resetVotes = async () => {
@@ -227,9 +285,28 @@ export default function OpenCampusQuizScreenPage() {
             <h1 className="mt-0.5 text-3xl font-bold tracking-tight">
               20〜30代の働く女性をターゲットに開発された商品は？
             </h1>
+            <p className={`mt-1 text-xs font-semibold ${quizOpen ? "text-emerald-300" : "text-slate-500"}`}>
+              {quizOpen ? "● 参加者画面にクイズを表示中" : "○ 参加者画面は待機中"}
+            </p>
           </div>
 
           <div className="flex items-center gap-2.5">
+            <button
+              onClick={toggleQuizOpen}
+              disabled={!quizStatusReady || changingQuizStatus}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                quizOpen
+                  ? "bg-rose-500/20 text-rose-200 ring-1 ring-rose-400/30 hover:bg-rose-500/30"
+                  : "bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-400/30 hover:bg-emerald-500/30"
+              }`}
+            >
+              {changingQuizStatus
+                ? "切り替え中..."
+                : quizOpen
+                  ? "受付を終了"
+                  : "クイズを開始"}
+            </button>
+
             <button
               onClick={resetVotes}
               disabled={resetting}
